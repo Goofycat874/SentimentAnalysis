@@ -52,6 +52,19 @@
             <span id="facesBadge" class="badge" hidden>0 faces</span>
             <span id="aiBadge" class="badge" hidden>⏳ Warming up AI…</span>
           </div>
+
+          <div id="jokeCard" class="joke-card" role="status" aria-live="polite" hidden>
+            <div class="joke-head">
+              <span id="jokeIntro" class="joke-intro"></span>
+              <button id="jokeClose" class="joke-x" aria-label="Close joke">✕</button>
+            </div>
+            <p id="jokeSetup" class="joke-setup"></p>
+            <p id="jokePunch" class="joke-punch"></p>
+            <div class="joke-actions">
+              <button id="jokeMore" class="btn btn-joke">😂 Another one</button>
+              <span id="jokeWin" class="joke-win" hidden>😄 Got you to smile!</span>
+            </div>
+          </div>
         </div>
 
         <div class="controls">
@@ -76,6 +89,8 @@
             <label class="toggle"><input type="checkbox" id="mirrorChk" checked /><span>Mirror</span></label>
             <label class="toggle"><input type="checkbox" id="landmarksChk" /><span>Landmarks</span></label>
             <label class="toggle"><input type="checkbox" id="ageChk" checked /><span>Age &amp; gender</span></label>
+            <label class="toggle" title="Tell a joke when you look sad or disgusted"><input type="checkbox" id="cheerChk" checked /><span>Cheer me up</span></label>
+            <label class="toggle" title="Read jokes out loud"><input type="checkbox" id="speakChk" /><span>Read aloud</span></label>
           </div>
         </div>
       </div>
@@ -148,6 +163,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
   <script src="emotion-pro.js"></script>
+  <script src="jokes.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

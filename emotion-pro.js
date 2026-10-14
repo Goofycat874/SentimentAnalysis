@@ -54,7 +54,7 @@ window.EmotionPro = (() => {
     ort.env.logLevel = 'error';
     for (const ep of adapter ? ['webgpu', 'wasm'] : ['wasm']) {
       try {
-        session = await ort.InferenceSession.create(MODEL_PATH, { executionProviders: [ep], graphOptimizationLevel: 'all' });
+        session = await ort.InferenceSession.create(MODEL_PATH, { executionProviders: [ep], graphOptimizationLevel: 'all', logSeverityLevel: 3 });
         backend = ep;
         break;
       } catch (err) {

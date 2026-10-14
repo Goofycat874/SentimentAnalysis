@@ -49,6 +49,9 @@
     ageVal: $('ageVal'), genderVal: $('genderVal'), facesVal: $('facesVal'), detVal: $('detVal'),
     sessionBar: $('sessionBar'), sessionList: $('sessionList'), sessionEmpty: $('sessionEmpty'), resetBtn: $('resetBtn'),
     timeline: $('timeline'), legend: $('legend'), themeBtn: $('themeBtn'),
+    cheerChk: $('cheerChk'), speakChk: $('speakChk'), jokeCard: $('jokeCard'), jokeIntro: $('jokeIntro'),
+    jokeSetup: $('jokeSetup'), jokePunch: $('jokePunch'), jokeMore: $('jokeMore'), jokeClose: $('jokeClose'),
+    jokeWin: $('jokeWin'),
   };
   const ctx = el.overlay.getContext('2d');
 
@@ -479,6 +482,81 @@
     }
   }
 
+  // ---------------------------------------------------------------- Cheer me up: a joke for sad or disgusted faces
+  const CHEER_INTROS = {
+    sad: ['Looks like you could use a laugh 💙', "Cheer up! This one's for you 🌈", "Let's turn that frown upside down 🙃"],
+    disgusted: ["Ew, what's that face? Try this instead 😄", 'Something smell funny? This is funnier 👃', 'Wash that taste away with a joke 🍋'],
+    more: ['One more, coming right up 😂', "Okay, okay, here's another 🤭"],
+  };
+  const CHEER_MIN_SCORE = 0.45;     // how strong the emotion must be
+  const CHEER_HOLD_MS = 1500;       // ...and for how long, so a passing frown doesn't trigger it
+  const CHEER_COOLDOWN_MS = 25000;  // minimum gap between automatic jokes
+  const PUNCHLINE_DELAY_MS = 2200;
+  const SMILE_WINDOW_MS = 15000;    // a smile within this time after the punchline counts as a win
+  const cheer = { key: null, since: 0, lastShown: -Infinity, smileUntil: 0, punchTimer: 0, hideTimer: 0 };
+
+  function speak(text) {
+    if (!el.speakChk.checked || !('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.rate = 1.05;
+    speechSynthesis.speak(u);
+  }
+
+  function showJoke(kind) {
+    const joke = Jokes.next();
+    const intros = CHEER_INTROS[kind] || CHEER_INTROS.more;
+    el.jokeIntro.textContent = intros[Math.floor(Math.random() * intros.length)];
+    el.jokeSetup.textContent = joke.setup;
+    el.jokePunch.textContent = '';
+    el.jokePunch.classList.remove('reveal');
+    el.jokeWin.hidden = true;
+    el.jokeCard.hidden = false;
+    el.jokeCard.style.animation = 'none';
+    void el.jokeCard.offsetWidth; // restart the pop-in animation
+    el.jokeCard.style.animation = '';
+
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    speak(joke.setup);
+    clearTimeout(cheer.punchTimer);
+    clearTimeout(cheer.hideTimer);
+    cheer.punchTimer = setTimeout(() => {
+      el.jokePunch.textContent = joke.punchline;
+      el.jokePunch.classList.add('reveal');
+      speak(joke.punchline);
+      cheer.smileUntil = performance.now() + SMILE_WINDOW_MS;
+    }, PUNCHLINE_DELAY_MS);
+    // Photos are still, so the card stays until closed; on camera it clears itself.
+    if (state.source === 'camera') cheer.hideTimer = setTimeout(hideJoke, 20000);
+    cheer.lastShown = performance.now();
+    cheer.smileUntil = 0;
+  }
+
+  function hideJoke() {
+    clearTimeout(cheer.punchTimer);
+    clearTimeout(cheer.hideTimer);
+    el.jokeCard.hidden = true;
+    cheer.smileUntil = 0;
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  }
+
+  function updateCheer(main, now) {
+    if (!el.cheerChk.checked || !main) { cheer.key = null; return; }
+    const key = topEmotion(main.expr);
+
+    if (now < cheer.smileUntil && key === 'happy' && main.expr.happy > 0.6) {
+      cheer.smileUntil = 0;
+      el.jokeWin.hidden = false;
+      clearTimeout(cheer.hideTimer);
+      cheer.hideTimer = setTimeout(hideJoke, 5000);
+    }
+
+    if (!(key in CHEER_INTROS) || key === 'more' || main.expr[key] < CHEER_MIN_SCORE) { cheer.key = null; return; }
+    if (cheer.key !== key) { cheer.key = key; cheer.since = now; return; }
+    if (now - cheer.since >= CHEER_HOLD_MS && now - cheer.lastShown >= CHEER_COOLDOWN_MS && el.jokeCard.hidden) {
+      showJoke(key);
+    }
+  }
+
   // ---------------------------------------------------------------- Frame handling
   function handleResults(results, inferMs, W, H) {
     const now = performance.now();
@@ -498,7 +576,8 @@
     el.facesBadge.hidden = false;
     el.facesBadge.textContent = `${faces.length} face${faces.length === 1 ? '' : 's'}`;
 
-    if (!isCamera) return;
+    if (!isCamera) return main;
+    updateCheer(main, now);
 
     const dt = state.lastFrame ? now - state.lastFrame : 0;
     state.lastFrame = now;
@@ -519,6 +598,7 @@
       state.lastSample = now;
       drawTimeline();
     }
+    return main;
   }
 
   async function loop() {
@@ -611,6 +691,7 @@
 
   function stopAll() {
     stopStream();
+    hideJoke();
     state.source = null;
     state.tracks = [];
     if (el.photo.src) URL.revokeObjectURL(el.photo.src);
@@ -629,7 +710,11 @@
       const t0 = performance.now();
       const results = await detect(el.photo, el.photo.naturalWidth, el.photo.naturalHeight);
       state.tracks = [];
-      handleResults(results, performance.now() - t0, el.photo.naturalWidth, el.photo.naturalHeight);
+      const main = handleResults(results, performance.now() - t0, el.photo.naturalWidth, el.photo.naturalHeight);
+      const key = main && topEmotion(main.expr);
+      if (el.cheerChk.checked && (key === 'sad' || key === 'disgusted') && main.expr[key] >= CHEER_MIN_SCORE && el.jokeCard.hidden) {
+        showJoke(key);
+      }
       setStatus('ready', results.length ? `Found ${results.length} face${results.length === 1 ? '' : 's'}` : 'No faces found');
     } catch (err) {
       console.error(err);
@@ -712,6 +797,12 @@
       analyzePhoto();
     });
     el.emotionSelect.addEventListener('change', () => { renderModelInfo(); analyzePhoto(); });
+    el.jokeClose.addEventListener('click', hideJoke);
+    el.jokeMore.addEventListener('click', () => showJoke('more'));
+    el.cheerChk.addEventListener('change', () => { if (!el.cheerChk.checked) hideJoke(); });
+    el.speakChk.addEventListener('change', () => {
+      if (!el.speakChk.checked && 'speechSynthesis' in window) speechSynthesis.cancel();
+    });
     el.resetBtn.addEventListener('click', () => {
       for (const k of KEYS) state.session[k] = 0;
       state.history = [];

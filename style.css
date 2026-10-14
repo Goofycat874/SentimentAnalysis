@@ -127,6 +127,31 @@ h1, h2, h3 { margin: 0; letter-spacing: -0.01em; }
   padding: 4px 9px; border-radius: 999px; backdrop-filter: blur(4px);
 }
 
+/* ---------- Joke card ---------- */
+.joke-card {
+  position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
+  width: min(440px, calc(100% - 24px)); padding: 14px 16px 12px; border-radius: 14px;
+  background: rgba(255, 255, 255, .96); color: #171a2b; box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+  animation: joke-in .35s cubic-bezier(.2, .9, .3, 1.2);
+}
+@keyframes joke-in { from { opacity: 0; transform: translate(-50%, 20px) scale(.96); } }
+.joke-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.joke-intro { font-size: 12.5px; font-weight: 700; color: #5b5bf0; }
+.joke-x { border: 0; background: none; font-size: 14px; color: #687089; cursor: pointer; padding: 2px 4px; }
+.joke-setup { margin: 6px 0 4px; font-size: 16px; font-weight: 600; }
+.joke-punch { margin: 0 0 10px; font-size: 17px; font-weight: 800; color: #b45309; min-height: 1.4em; }
+.joke-punch.reveal { animation: joke-pop .4s ease-out; }
+@keyframes joke-pop { from { opacity: 0; transform: scale(.9); } }
+.joke-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.joke-card .btn-joke { background: #fef3c7; border-color: #fcd34d; color: #78350f; padding: 7px 12px; font-size: 13px; }
+.joke-card .btn-joke:hover { background: #fde68a; }
+.joke-win { font-size: 13.5px; font-weight: 700; color: #15803d; animation: joke-pop .4s ease-out; }
+@media (max-width: 560px) {
+  .joke-card { bottom: 10px; padding: 12px 14px 10px; }
+  .joke-setup { font-size: 15px; }
+  .joke-punch { font-size: 15.5px; }
+}
+
 /* ---------- Controls ---------- */
 .controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; justify-content: space-between; padding: 12px 4px 2px; }
 .control-group { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
