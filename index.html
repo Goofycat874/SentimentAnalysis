@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MoodLens · Live Emotion Detection</title>
+  <meta name="description" content="Real-time facial emotion detection in your browser using your camera." />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🙂</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo" aria-hidden="true">🙂</span>
+      <div>
+        <h1>MoodLens</h1>
+        <p class="tagline">Live facial emotion detection, running entirely in your browser</p>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span id="statusPill" class="pill pill-loading"><span class="dot"></span><span id="statusText">Loading AI models…</span></span>
+      <button id="themeBtn" class="icon-btn" title="Toggle dark mode" aria-label="Toggle dark mode">🌓</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- LEFT: camera stage -->
+    <section class="stage-col">
+      <div class="card stage-card">
+        <div id="stage" class="stage">
+          <video id="video" autoplay muted playsinline></video>
+          <img id="photo" alt="Uploaded photo" hidden />
+          <canvas id="overlay"></canvas>
+
+          <div id="placeholder" class="placeholder">
+            <div class="placeholder-emoji" aria-hidden="true">📷</div>
+            <h2>See how you feel</h2>
+            <p>Turn on your camera and MoodLens will read the emotion on each face it sees.
+               Nothing is uploaded. All processing happens on this device.</p>
+            <div class="placeholder-actions">
+              <button id="startBtn" class="btn btn-primary">▶ Start camera</button>
+              <label class="btn btn-ghost" for="fileInput">Analyze a photo</label>
+            </div>
+            <p id="errorMsg" class="error" hidden></p>
+          </div>
+
+          <div class="stage-hud">
+            <span id="fpsBadge" class="badge" hidden>0 FPS</span>
+            <span id="facesBadge" class="badge" hidden>0 faces</span>
+            <span id="aiBadge" class="badge" hidden>⏳ Warming up AI…</span>
+          </div>
+        </div>
+
+        <div class="controls">
+          <div class="control-group">
+            <button id="stopBtn" class="btn btn-ghost" disabled>⏹ Stop</button>
+            <button id="snapBtn" class="btn btn-ghost" disabled>📸 Snapshot</button>
+            <label class="btn btn-ghost" for="fileInput">🖼 Photo</label>
+            <input id="fileInput" type="file" accept="image/*" hidden />
+          </div>
+          <div class="control-group">
+            <select id="cameraSelect" class="select" title="Camera" aria-label="Camera" hidden></select>
+            <select id="emotionSelect" class="select" title="Emotion model" aria-label="Emotion model">
+              <option value="pro">🧠 Emotion: Pro</option>
+              <option value="lite">🪶 Emotion: Lite</option>
+            </select>
+            <select id="modeSelect" class="select" title="Face detector" aria-label="Face detector">
+              <option value="fast">⚡ Faces: Fast</option>
+              <option value="accurate">🎯 Faces: Accurate</option>
+            </select>
+          </div>
+          <div class="control-group toggles">
+            <label class="toggle"><input type="checkbox" id="mirrorChk" checked /><span>Mirror</span></label>
+            <label class="toggle"><input type="checkbox" id="landmarksChk" /><span>Landmarks</span></label>
+            <label class="toggle"><input type="checkbox" id="ageChk" checked /><span>Age &amp; gender</span></label>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Emotion timeline</h3>
+          <span class="muted small">last 30 seconds · main face</span>
+        </div>
+        <canvas id="timeline" class="timeline"></canvas>
+        <div id="legend" class="legend"></div>
+      </div>
+    </section>
+
+    <!-- RIGHT: readouts -->
+    <aside class="side-col">
+      <div class="card hero" id="heroCard">
+        <div id="heroEmoji" class="hero-emoji" aria-hidden="true">😶</div>
+        <div class="hero-text">
+          <span class="muted small">Current emotion</span>
+          <div id="heroLabel" class="hero-label">Waiting…</div>
+          <div id="heroConf" class="muted">No face detected yet</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>All emotions</h3></div>
+        <div id="bars" class="bars"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Mood map</h3><span id="moodValue" class="muted small">-</span></div>
+        <div class="mood-map" aria-label="Mood map: negative to positive across, calm to excited up">
+          <span class="mm-q mm-tl">😠 Tense</span><span class="mm-q mm-tr">Excited 🤩</span>
+          <span class="mm-q mm-bl">😔 Down</span><span class="mm-q mm-br">Calm 😌</span>
+          <div id="moodTrail" class="mm-trail"></div>
+          <div id="moodDot" class="mm-dot" hidden></div>
+        </div>
+        <div class="mm-axes muted small"><span>← negative</span><span>↑ energy ↓</span><span>positive →</span></div>
+      </div>
+
+      <div class="card">
+        <div class="card-head"><h3>Face details</h3></div>
+        <div class="stats-grid">
+          <div class="stat"><span class="muted small">Age (est.)</span><strong id="ageVal">-</strong></div>
+          <div class="stat"><span class="muted small">Gender (est.)</span><strong id="genderVal">-</strong></div>
+          <div class="stat"><span class="muted small">Faces</span><strong id="facesVal">0</strong></div>
+          <div class="stat"><span class="muted small">Speed</span><strong id="detVal">-</strong></div>
+          <div class="stat stat-wide"><span class="muted small">Emotion AI</span><strong id="modelVal">-</strong></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h3>Session summary</h3>
+          <button id="resetBtn" class="link-btn">Reset</button>
+        </div>
+        <div id="sessionBar" class="session-bar"></div>
+        <ul id="sessionList" class="session-list"></ul>
+        <p id="sessionEmpty" class="muted small">Start the camera to build a summary of your moods.</p>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer muted small">
+    Powered by <a href="https://github.com/sb-ai-lab/EmotiEffLib" target="_blank" rel="noopener">EmotiEffLib</a> (AffectNet emotion model),
+    <a href="https://github.com/vladmandic/face-api" target="_blank" rel="noopener">face-api.js</a> and ONNX Runtime Web.
+    Age, gender and emotion are model estimates, not facts. Video never leaves your device.
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
+  <script src="emotion-pro.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
